@@ -27,21 +27,47 @@ pub struct RuntimeConfig<'a> {
     pub gpu_mode: &'a str, // TODO: this is not implemented yet
     pub internal_node_sol: f64,
     pub internal_node_stake_sol: f64,
+    pub shred_version: Option<u16>,
+}
+
+impl<'a> std::fmt::Display for RuntimeConfig<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Runtime Config\n\
+             enable_udp: {}\n\
+             disable_quic: {}\n\
+             gpu_mode: {}\n\
+             internal_node_sol: {}\n\
+             internal_node_stake_sol: {}\n\
+             shred_version: {:?}",
+            self.enable_udp,
+            self.disable_quic,
+            self.gpu_mode,
+            self.internal_node_sol,
+            self.internal_node_stake_sol,
+            self.shred_version,
+        )
+    }
 }
 
 pub struct Kubernetes<'a> {
     client: Client,
     namespace: &'a str,
-    runtime_config: &'a RuntimeConfig<'a>,
+    runtime_config: &'a mut RuntimeConfig<'a>,
 }
 
 impl<'a> Kubernetes<'a> {
-    pub async fn new(namespace: &'a str, runtime_config: &'a RuntimeConfig<'a>) -> Kubernetes<'a> {
+    pub async fn new(namespace: &'a str, runtime_config: &'a mut RuntimeConfig<'a>) -> Kubernetes<'a> {
         Kubernetes {
             client: Client::try_default().await.unwrap(),
             namespace,
             runtime_config,
         }
+    }
+
+    pub fn set_shred_version(&mut self, shred_version: u16) {
+        self.runtime_config.shred_version = Some(shred_version);
     }
 
     fn generate_command_flags(&mut self) -> Vec<String> {
@@ -65,6 +91,15 @@ impl<'a> Kubernetes<'a> {
         flags.push(self.runtime_config.internal_node_stake_sol.to_string());
         flags.push("--internal-node-sol".to_string());
         flags.push(self.runtime_config.internal_node_sol.to_string());
+
+        if let Some(shred_version) = self.runtime_config.shred_version {
+            flags.extend(vec![
+                "--expected-shred-version".to_string(),
+                shred_version.to_string(),
+            ])
+        }
+
+        
         flags
     }
 

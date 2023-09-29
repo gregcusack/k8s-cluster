@@ -8,6 +8,7 @@ use {
         },
         initialize_globals,
         kubernetes::{Kubernetes, RuntimeConfig},
+        ledger_helper::LedgerHelper,
     },
     std::{thread, time::Duration},
 };
@@ -225,7 +226,7 @@ async fn main() {
         ),
     };
 
-    let runtime_config = RuntimeConfig {
+    let mut runtime_config = RuntimeConfig {
         enable_udp: matches.is_present("tpu_enable_udp"),
         disable_quic: matches.is_present("tpu_disable_quic"),
         gpu_mode: matches.value_of("gpu_mode").unwrap(),
@@ -240,7 +241,9 @@ async fn main() {
             .parse::<f64>()
             .expect("Invalid value for internal_node_stake_sol")
             as f64,
+        shred_version: None, //Set post genesis creation
     };
+    info!("Runtime Config: {}", runtime_config);
 
     let bootstrap_container_name = matches
         .value_of("bootstrap_container_name")
@@ -256,7 +259,7 @@ async fn main() {
         .expect("Validator image name is required");
 
     // Check if namespace exists
-    let mut kub_controller = Kubernetes::new(setup_config.namespace, &runtime_config).await;
+    let mut kub_controller = Kubernetes::new(setup_config.namespace, &mut runtime_config).await;
     match kub_controller.namespace_exists().await {
         Ok(res) => {
             if !res {
@@ -303,6 +306,14 @@ async fn main() {
         Ok(_) => (),
         Err(err) => {
             error!("generate genesis error! {}", err);
+            return;
+        }
+    }
+
+    match LedgerHelper::get_shred_version() {
+        Ok(shred_version) => kub_controller.set_shred_version(shred_version),
+        Err(err) => {
+            error!("{}", err);
             return;
         }
     }
