@@ -27,7 +27,10 @@ pub struct RuntimeConfig<'a> {
     pub gpu_mode: &'a str, // TODO: this is not implemented yet
     pub internal_node_sol: f64,
     pub internal_node_stake_sol: f64,
+    pub wait_for_supermajority: Option<u64>,
+    pub warp_slot: Option<u64>,
     pub shred_version: Option<u16>,
+    pub bank_hash: Option<String>,
 }
 
 impl<'a> std::fmt::Display for RuntimeConfig<'a> {
@@ -40,13 +43,19 @@ impl<'a> std::fmt::Display for RuntimeConfig<'a> {
              gpu_mode: {}\n\
              internal_node_sol: {}\n\
              internal_node_stake_sol: {}\n\
-             shred_version: {:?}",
+             wait_for_supermajority: {:?}\n\
+             warp_slot: {:?}\n\
+             shred_version: {:?}\n\
+             bank_hash: {:?}",
             self.enable_udp,
             self.disable_quic,
             self.gpu_mode,
             self.internal_node_sol,
             self.internal_node_stake_sol,
+            self.wait_for_supermajority,
+            self.warp_slot,
             self.shred_version,
+            self.bank_hash,
         )
     }
 }
@@ -70,6 +79,10 @@ impl<'a> Kubernetes<'a> {
         self.runtime_config.shred_version = Some(shred_version);
     }
 
+    pub fn set_bank_hash(&mut self, bank_hash: String) {
+        self.runtime_config.bank_hash = Some(bank_hash);
+    }
+
     fn generate_command_flags(&mut self) -> Vec<String> {
         let mut flags = Vec::new();
         if self.runtime_config.enable_udp {
@@ -78,6 +91,14 @@ impl<'a> Kubernetes<'a> {
         if self.runtime_config.disable_quic {
             flags.push("--tpu-disable-quic".to_string());
         }
+
+        if let Some(bank_hash) = self.runtime_config.bank_hash.clone() {
+            flags.extend(vec![
+                "--expected-bank-hash".to_string(),
+                bank_hash,
+            ])
+        }
+
         flags
     }
 
@@ -99,7 +120,6 @@ impl<'a> Kubernetes<'a> {
             ])
         }
 
-        
         flags
     }
 

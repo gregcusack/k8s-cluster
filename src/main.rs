@@ -159,6 +159,19 @@ fn parse_matches() -> ArgMatches<'static> {
                 .default_value("auto")
                 .help("Not supported yet. Specify GPU mode to launch validators with (default: auto)."),
         )
+        // Bootstrap validator flags
+        .arg(
+            Arg::with_name("wait_for_supermajority")
+                .long("wait-for-supermajority")
+                .takes_value(true)
+                .help("Slot number"),
+        )
+        .arg(
+            Arg::with_name("warp_slot")
+                .long("warp-slot")
+                .takes_value(true)
+                .help("Boot from a snapshot that has warped ahead to WARP_SLOT rather than a slot 0 genesis"),
+        )
         .get_matches()
 }
 
@@ -241,8 +254,34 @@ async fn main() {
             .parse::<f64>()
             .expect("Invalid value for internal_node_stake_sol")
             as f64,
-        shred_version: None, //Set post genesis creation
+        wait_for_supermajority: matches.value_of("wait_for_supermajority").map(|value_str| {
+            value_str
+                .parse()
+                .expect("Invalid value for wait_for_supermajority")
+        }),
+        warp_slot: matches
+            .value_of("warp_slot")
+            .map(|value_str| value_str.parse().expect("Invalid value for warp_slot")),
+        shred_version: None, // set after genesis created
+        bank_hash: None,     // set after genesis created
     };
+    
+    let wait_for_supermajority: Option<u64> = runtime_config.wait_for_supermajority;
+    let warp_slot: Option<u64> = runtime_config.warp_slot;
+    if !match (
+        runtime_config.wait_for_supermajority,
+        runtime_config.warp_slot,
+    ) {
+        (Some(slot1), Some(slot2)) => slot1 == slot2,
+        (None, None) => true, // Both are None, consider them equal
+        _ => true,
+    } {
+        panic!(
+            "Error: When specifying both --wait-for-supermajority and --warp-slot, \
+        they must use the same slot. ({:?} != {:?})",
+            runtime_config.wait_for_supermajority, runtime_config.warp_slot
+        );
+    }
     info!("Runtime Config: {}", runtime_config);
 
     let bootstrap_container_name = matches
@@ -315,6 +354,26 @@ async fn main() {
         Err(err) => {
             error!("{}", err);
             return;
+        }
+    }
+
+    if let Some(slot) = warp_slot {
+        //TODO: this needs to be mounted as a file in the bootstrap pod
+        match LedgerHelper::create_snapshot(slot) {
+            Ok(_) => (),
+            Err(err) => {
+                error!("Failed to create snapshot: {}", err);
+                return;
+            }
+        }
+    }
+    if wait_for_supermajority.is_some() {
+        match LedgerHelper::create_bank_hash() {
+            Ok(bank_hash) => kub_controller.set_bank_hash(bank_hash),
+            Err(err) => {
+                error!("Failed to get bank hash: {}", err);
+                return;
+            }
         }
     }
 
