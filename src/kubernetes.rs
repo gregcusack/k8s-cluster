@@ -92,6 +92,13 @@ impl<'a> Kubernetes<'a> {
             flags.push("--tpu-disable-quic".to_string());
         }
 
+        if let Some(slot) = self.runtime_config.wait_for_supermajority {
+            flags.extend(vec![
+                "--wait-for-supermajority".to_string(),
+                slot.to_string(),
+            ])
+        }
+
         if let Some(bank_hash) = self.runtime_config.bank_hash.clone() {
             flags.extend(vec![
                 "--expected-bank-hash".to_string(),

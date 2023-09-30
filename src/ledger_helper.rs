@@ -1,7 +1,7 @@
 use {
     crate::{boxed_error, genesis::DEFAULT_MAX_GENESIS_ARCHIVE_UNPACKED_SIZE, LEDGER_DIR},
     log::*,
-    std::{error::Error, process::Command, str::FromStr},
+    std::{error::Error, process::Command},
 };
 
 fn ledger_directory_exists() -> Result<(), Box<dyn Error>> {

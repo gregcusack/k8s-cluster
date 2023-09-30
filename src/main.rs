@@ -265,7 +265,7 @@ async fn main() {
         shred_version: None, // set after genesis created
         bank_hash: None,     // set after genesis created
     };
-    
+
     let wait_for_supermajority: Option<u64> = runtime_config.wait_for_supermajority;
     let warp_slot: Option<u64> = runtime_config.warp_slot;
     if !match (
