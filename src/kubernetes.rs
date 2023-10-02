@@ -1,13 +1,14 @@
 use {
-    crate::{boxed_error, SOLANA_ROOT},
+    crate::{boxed_error, LEDGER_DIR, SOLANA_ROOT},
     base64::{engine::general_purpose, Engine as _},
     k8s_openapi::{
         api::{
             apps::v1::{ReplicaSet, ReplicaSetSpec},
             core::v1::{
-                ConfigMap, ConfigMapVolumeSource, Container, EnvVar, EnvVarSource, Namespace,
-                ObjectFieldSelector, PodSecurityContext, PodSpec, PodTemplateSpec, Secret,
-                SecretVolumeSource, Service, ServicePort, ServiceSpec, Volume, VolumeMount,
+                ConfigMap, ConfigMapVolumeSource, Container, EnvVar, EnvVarSource,
+                HostPathVolumeSource, Namespace, ObjectFieldSelector, PodSecurityContext, PodSpec,
+                PodTemplateSpec, Secret, SecretVolumeSource, Service, ServicePort, ServiceSpec,
+                Volume, VolumeMount,
             },
         },
         apimachinery::pkg::apis::meta::v1::LabelSelector,
@@ -67,7 +68,10 @@ pub struct Kubernetes<'a> {
 }
 
 impl<'a> Kubernetes<'a> {
-    pub async fn new(namespace: &'a str, runtime_config: &'a mut RuntimeConfig<'a>) -> Kubernetes<'a> {
+    pub async fn new(
+        namespace: &'a str,
+        runtime_config: &'a mut RuntimeConfig<'a>,
+    ) -> Kubernetes<'a> {
         Kubernetes {
             client: Client::try_default().await.unwrap(),
             namespace,
@@ -100,10 +104,7 @@ impl<'a> Kubernetes<'a> {
         }
 
         if let Some(bank_hash) = self.runtime_config.bank_hash.clone() {
-            flags.extend(vec![
-                "--expected-bank-hash".to_string(),
-                bank_hash,
-            ])
+            flags.extend(vec!["--expected-bank-hash".to_string(), bank_hash])
         }
 
         flags
@@ -135,18 +136,19 @@ impl<'a> Kubernetes<'a> {
             name: Some("genesis-config".to_string()),
             ..Default::default()
         };
-        let genesis_tar_path = SOLANA_ROOT.join("config/bootstrap-validator/genesis.tar.bz2");
+        let genesis_tar_path: std::path::PathBuf =
+            SOLANA_ROOT.join("config/bootstrap-validator/genesis-package.tar.bz2");
         let mut genesis_tar_file = File::open(genesis_tar_path).unwrap();
         let mut buffer = Vec::new();
 
         match genesis_tar_file.read_to_end(&mut buffer) {
             Ok(_) => (),
-            Err(err) => panic!("failed to read genesis.tar.bz: {}", err),
+            Err(err) => panic!("failed to read genesis-package.tar.bz: {}", err),
         }
 
         // Define the data for the ConfigMap
         let mut data = BTreeMap::<String, ByteString>::new();
-        data.insert("genesis.tar.bz2".to_string(), ByteString(buffer));
+        data.insert("genesis-package.tar.bz2".to_string(), ByteString(buffer));
 
         // Create the ConfigMap
         let config_map = ConfigMap {
@@ -284,10 +286,16 @@ impl<'a> Kubernetes<'a> {
                     image_pull_policy: Some("Always".to_string()),
                     env: Some(env_vars),
                     command: Some(command.to_owned()),
-                    volume_mounts: Some(vec![genesis_volume_mount, accounts_volume_mount]),
+                    volume_mounts: Some(vec![
+                        genesis_volume_mount,
+                        accounts_volume_mount, /* , ledger_volume_mount*/
+                    ]),
                     ..Default::default()
                 }],
-                volumes: Some(vec![genesis_volume, accounts_volume]),
+                volumes: Some(vec![
+                    genesis_volume,
+                    accounts_volume, /* , ledger_volume*/
+                ]),
                 security_context: Some(PodSecurityContext {
                     run_as_user: Some(1000),
                     run_as_group: Some(1000),

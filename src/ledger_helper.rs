@@ -38,8 +38,9 @@ impl LedgerHelper {
             Ok(shred_version)
         } else {
             Err(boxed_error!(format!(
-                "Error in solana-ledger-tool create-snapshot command. err: {}", String::from_utf8_lossy(&output.stderr))
-            ))
+                "Error in solana-ledger-tool create-snapshot command. err: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )))
         }
     }
 
@@ -63,8 +64,9 @@ impl LedgerHelper {
 
         if !output.status.success() {
             return Err(boxed_error!(format!(
-                "Error in solana-ledger-tool create-snapshot command. err: {}", String::from_utf8_lossy(&output.stderr))
-            ));
+                "Error in solana-ledger-tool create-snapshot command. err: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )));
         }
         Ok(())
     }
@@ -85,8 +87,9 @@ impl LedgerHelper {
             Ok(bank_hash.trim().to_string())
         } else {
             Err(boxed_error!(format!(
-                "Error in solana-ledger-tool bank-hash command. err: {}", String::from_utf8_lossy(&output.stderr))
-            ))
+                "Error in solana-ledger-tool bank-hash command. err: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )))
         }
     }
 }

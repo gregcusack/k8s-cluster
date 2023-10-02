@@ -1,11 +1,15 @@
 use {
-    crate::{boxed_error, initialize_globals, SOLANA_ROOT},
+    crate::{boxed_error, initialize_globals, LEDGER_DIR, SOLANA_ROOT},
+    bzip2::{write::BzEncoder, Compression},
     log::*,
     std::{
         error::Error,
+        fs::File,
+        io::{self, Write},
         path::PathBuf,
         process::{Command, Output},
     },
+    tar::Builder,
 };
 
 pub const DEFAULT_FAUCET_LAMPORTS: u64 = 500000000000000000;
@@ -272,6 +276,20 @@ impl Genesis {
                 String::from_utf8_lossy(&output.stderr)
             )));
         }
+        Ok(())
+    }
+
+    // solana-genesis creates a genesis.tar.bz2 but if we need to create snapshots, these
+    // are not included in the genesis.tar.bz2. So we package everything including genesis.tar.bz2
+    // snapshots, etc into genesis-package.tar.bz2 and we use this as our genesis in the bootstrap
+    // validator
+    pub fn package_up(&mut self) -> Result<(), Box<dyn Error>> {
+        info!("Packaging genesis");
+        let tar_bz2_file = File::create(LEDGER_DIR.join("genesis-package.tar.bz2"))?;
+        let encoder = BzEncoder::new(tar_bz2_file, Compression::best());
+        let mut tar_builder = Builder::new(encoder);
+        tar_builder.append_dir_all(".", &*LEDGER_DIR)?;
+
         Ok(())
     }
 }

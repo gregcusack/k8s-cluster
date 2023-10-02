@@ -377,6 +377,14 @@ async fn main() {
         }
     }
 
+    match genesis.package_up() {
+        Ok(_) => (),
+        Err(err) => {
+            error!("package genesis error! {}", err);
+            return;
+        }
+    }
+
     // // Begin Kubernetes Setup and Deployment
     let config_map = match kub_controller.create_genesis_config_map().await {
         Ok(config_map) => {

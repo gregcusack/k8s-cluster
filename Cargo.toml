@@ -11,12 +11,14 @@ description = "Kubernetes Validator Deployment for Testing. Deployment and Runti
 
 [dependencies]
 base64 = "0.21.4"
+bzip2 = "0.4.4"
 clap = "2.33.1"
 kube = "0.85.0"
 k8s-openapi ={ version = "0.19.0", features = ["v1_27"] }
 lazy_static = "1.4.0"
 log = "0.4.20"
 solana-logger = "1.16.14"
+tar = "0.4.40"
 tiny-bip39 = "0.8.2"
 tokio = { version = "1.29.1", features = ["full"] }
 
